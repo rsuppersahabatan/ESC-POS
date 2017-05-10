@@ -36,6 +36,8 @@ Notes:
 
 This Is in Codeigniter!
 ~~~PHP
+$this->load->library("EscPos.php");
+
 try {
 		// Enter the device file for your USB printer here
 	  $connector = new Escpos\PrintConnectors\FilePrintConnector("/dev/usb/lp0");
