@@ -1,106 +1,132 @@
 <?php
+/**
+ * This file is part of escpos-php: PHP receipt printer library for use with
+ * ESC/POS-compatible thermal and impact printers.
+ *
+ * Copyright (c) 2014-16 Michael Billington < michael.billington@gmail.com >,
+ * incorporating modifications by others. See CONTRIBUTORS.md for a full list.
+ *
+ * This software is distributed under the terms of the MIT license. See LICENSE.md
+ * for details.
+ */
+
 namespace Escpos\PrintBuffers;
 
 use Exception;
 use LogicException;
 use Escpos\Printer;
 use Escpos\EscposImage;
+use Escpos\ImagickEscposImage;
 
 /**
- * escpos-php, a Thermal receipt printer library, for use with
- * ESC/POS compatible printers.
- *
- * Copyright (c) 2014-2015 Michael Billington <michael.billington@gmail.com>,
- * 	incorporating modifications by:
- *  - Roni Saha <roni.cse@gmail.com>
- *  - Gergely Radics <gerifield@ustream.tv>
- *  - Warren Doyle <w.doyle@fuelled.co>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  * This class renders text to small images on-the-fly. It attempts to mimic the
  * behaviour of text output, whilst supporting any fonts & character encodings
  * which your system can handle. This class currently requires Imagick.
  */
-class ImagePrintBuffer implements PrintBuffer {
-	private $printer;
-	
-	function __construct() {
-		if(!EscposImage::isImagickLoaded()) {
-			throw new Exception("ImagePrintBuffer requires the imagick extension");
-		}
-	}
+class ImagePrintBuffer implements PrintBuffer
+{
+    private $printer;
 
-	function flush() {
-		if($this -> printer == null) {
-			throw new LogicException("Not attached to a printer.");
-		}
-	}
+    private $font;
 
-	function getPrinter() {
-		return $this -> printer;
-	}
+    private $fontSize;
 
-	function setPrinter(Printer $printer = null) {
-		$this -> printer = $printer;
-	}
+    public function __construct()
+    {
+        if (!EscposImage::isImagickLoaded()) {
+            throw new Exception("ImagePrintBuffer requires the imagick extension");
+        }
+        $this -> font = null;
+        $this -> fontSize = 24;
+    }
 
-	function writeText($text) {
-		if($this -> printer == null) {
-			throw new LogicException("Not attached to a printer.");
-		}
-		if($text == null) {
-			return;
-		}
-		$text = trim($text, "\n");
-		/* Create Imagick objects */
-		$image = new \Imagick();
-		$draw = new \ImagickDraw();
-		$color = new \ImagickPixel('#000000');
-		$background = new \ImagickPixel('white');
+    public function flush()
+    {
+        if ($this -> printer == null) {
+            throw new LogicException("Not attached to a printer.");
+        }
+    }
 
-		/* Create annotation */
-		//$draw -> setFont('Arial');// (not necessary?)
-		$draw -> setFontSize(24); // Size 21 looks good for FONT B
-		$draw -> setFillColor($color);
-		$draw -> setStrokeAntialias(true);
-		$draw -> setTextAntialias(true);
-		$metrics = $image -> queryFontMetrics($draw, $text);
-		$draw -> annotation(0, $metrics['ascender'], $text);
+    public function getPrinter()
+    {
+        return $this -> printer;
+    }
 
-		/* Create image & draw annotation on it */
-		$image -> newImage($metrics['textWidth'], $metrics['textHeight'], $background);
-		$image -> setImageFormat('png');
-		$image -> drawImage($draw);
-		//$image -> writeImage("test.png");
-		
-		/* Save image */
-		$escposImage = new EscposImage();
-		$escposImage -> readImageFromImagick($image);
-		$size = Printer::IMG_DEFAULT;
-		$this -> printer -> bitImage($escposImage, $size);
-	}
+    public function setPrinter(Printer $printer = null)
+    {
+        $this -> printer = $printer;
+    }
 
-	function writeTextRaw($text) {
-		if($this -> printer == null) {
-			throw new LogicException("Not attached to a printer.");
-		}
-		$this -> printer -> getPrintConnector() -> write($data);
-	}
+    public function writeText($text)
+    {
+        if ($this -> printer == null) {
+            throw new LogicException("Not attached to a printer.");
+        }
+        if ($text == null) {
+            return;
+        }
+        $text = trim($text, "\n");
+        /* Create Imagick objects */
+        $image = new \Imagick();
+        $draw = new \ImagickDraw();
+        $color = new \ImagickPixel('#000000');
+        $background = new \ImagickPixel('white');
+            
+        /* Create annotation */
+        if ($this->font !== null) {
+            // Allow fallback on defaults as necessary
+            $draw->setFont($this->font);
+        }
+        /* In Arial, size 21 looks good as a substitute for FONT_B, 24 for FONT_A */
+        $draw -> setFontSize($this -> fontSize);
+        $draw -> setFillColor($color);
+        $draw -> setStrokeAntialias(true);
+        $draw -> setTextAntialias(true);
+        $metrics = $image -> queryFontMetrics($draw, $text);
+        $draw -> annotation(0, $metrics['ascender'], $text);
+
+        /* Create image & draw annotation on it */
+        $image -> newImage($metrics['textWidth'], $metrics['textHeight'], $background);
+        $image -> setImageFormat('png');
+        $image -> drawImage($draw);
+        // debugging if you want to view the images yourself
+        //$image -> writeImage("test.png");
+
+        /* Save image */
+        $escposImage = new ImagickEscposImage();
+        $escposImage -> readImageFromImagick($image);
+        $size = Printer::IMG_DEFAULT;
+        $this -> printer -> bitImage($escposImage, $size);
+    }
+
+    public function writeTextRaw($text)
+    {
+        if ($this -> printer == null) {
+            throw new LogicException("Not attached to a printer.");
+        }
+        $this -> printer -> getPrintConnector() -> write($data);
+    }
+
+    /**
+     * Set path on disk to TTF font that will be used to render text to image,
+     * or 'null' to use a default.
+     *
+     * ImageMagick will also accept a font name, but this will not port as well
+     * between systems.
+     *
+     * @param string $font
+     *            Font name or a filename
+     */
+    public function setFont($font)
+    {
+        $this->font = $font;
+    }
+
+    /**
+     * Numeric font size for rendering text to image
+     */
+    public function setFontSize($fontSize)
+    {
+        $this->fontSize = $fontSize;
+    }
 }
