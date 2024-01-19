@@ -54,6 +54,11 @@ try {
 }
 ~~~
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rsuppersahabatan/ESC-POS&type=Date)](https://star-history.com/#rsuppersahabatan/ESC-POS&Date)
+
+
 Done!
 
 More info: topidesta.wordpress.com
